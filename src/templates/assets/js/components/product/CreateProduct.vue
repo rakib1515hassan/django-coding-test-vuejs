@@ -97,10 +97,34 @@
 </template>
 
 <script>
-import vue2Dropzone from 'vue2-dropzone'
-import 'vue2-dropzone/dist/vue2Dropzone.min.css'
-import InputTag from 'vue-input-tag'
-import axios from 'axios'
+import vue2Dropzone from 'vue2-dropzone';
+import 'vue2-dropzone/dist/vue2Dropzone.min.css';
+import InputTag from 'vue-input-tag';
+import axios from 'axios';
+
+// Set up axios to use the csrf cookie in the requests
+const apiClient = axios.create({
+  baseURL: 'http://127.0.0.1:8000', // Set your Django backend URL
+  withCredentials: true, // This allows Axios to send cookies along with the request
+});
+
+// Add a request interceptor to set the CSRF token from cookies to request headers
+apiClient.interceptors.request.use(config => {
+  const csrftoken = getCookie('csrftoken'); // Implement a function to get the CSRF token from cookies
+  if (csrftoken) {
+    config.headers['X-CSRFToken'] = csrftoken;
+  }
+  return config;
+});
+
+// Function to retrieve the CSRF token from cookies
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+export { apiClient }; // Export the apiClient instance
 
 export default {
   components: {
@@ -130,22 +154,21 @@ export default {
         url: 'https://httpbin.org/post',
         thumbnailWidth: 150,
         maxFilesize: 0.5,
-        headers: {"My-Awesome-Header": "header value"}
+        headers: { "My-Awesome-Header": "header value" }
       }
-    }
+    };
   },
   methods: {
     // it will push a new object into product variant
     newVariant() {
-      let all_variants = this.variants.map(el => el.id)
+      let all_variants = this.variants.map(el => el.id);
       let selected_variants = this.product_variant.map(el => el.option);
-      let available_variants = all_variants.filter(entry1 => !selected_variants.some(entry2 => entry1 == entry2))
-      // console.log(available_variants)
+      let available_variants = all_variants.filter(entry1 => !selected_variants.some(entry2 => entry1 == entry2));
 
       this.product_variant.push({
         option: available_variants[0],
         tags: []
-      })
+      });
     },
 
     // check the variant and render all the combination
@@ -154,15 +177,15 @@ export default {
       this.product_variant_prices = [];
       this.product_variant.filter((item) => {
         tags.push(item.tags);
-      })
+      });
 
       this.getCombn(tags).forEach(item => {
         this.product_variant_prices.push({
           title: item,
           price: 0,
           stock: 0
-        })
-      })
+        });
+      });
     },
 
     // combination algorithm
@@ -187,22 +210,21 @@ export default {
         product_image: this.images,
         product_variant: this.product_variant,
         product_variant_prices: this.product_variant_prices
-      }
+      };
 
-
-      axios.post('/product', product).then(response => {
-        console.log(response.data);
-      }).catch(error => {
-        console.log(error);
-      })
-
-      console.log(product);
+      apiClient.post('/product/save', product)
+        .then(response => {
+          console.log(response.data);
+          // You can handle the response from the server here
+        })
+        .catch(error => {
+          console.log(error);
+          // Handle error if the request fails
+        });
     }
-
-
   },
   mounted() {
-    console.log('Component mounted.')
+    console.log('Component mounted.');
   }
-}
+};
 </script>
